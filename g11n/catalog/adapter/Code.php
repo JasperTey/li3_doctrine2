@@ -113,6 +113,7 @@ class Code extends \lithium\g11n\catalog\Adapter {
 
 		$defaults = array(
 			'ids' => array(),
+			'context' => null,
 			'open' => false,
 			'position' => 0,
 			'occurrence' => array('file' => $file, 'line' => null)
@@ -127,6 +128,47 @@ class Code extends \lithium\g11n\catalog\Adapter {
 		$tokens = token_get_all($contents);
 		unset($contents);
 
+		$findOption = function ($name, $position) use ($tokens) {
+			$stack  = array($name, T_DOUBLE_ARROW, T_CONSTANT_ENCAPSED_STRING);
+			$ignore = array(T_WHITESPACE);
+			$next   = array_shift($stack);
+			$open   = 1;
+
+			while (isset($tokens[$position]) && $token = $tokens[$position]) {
+				if (!is_array($token)) {
+					$token = array(0 => null, 1 => $token, 2 => null);
+				}
+
+				if ($token[1] === '(') {
+					$open++;
+				}
+				elseif ($token[1] === ')') {
+					if (--$open == 0) {
+						break;
+					}
+				}
+
+				if ($next === $name) {
+					if ($token[0] === T_CONSTANT_ENCAPSED_STRING && substr($token[1], 1, -1) === $name) {
+						$next = array_shift($stack);
+					}
+				}
+				elseif ($token[0] === $next) {
+					if (empty($stack)) {
+						return $token[1];
+					}
+					$next = array_shift($stack);
+				}
+				elseif (!in_array($token[0], $ignore, true)) {
+					break;
+				}
+
+				$position++;
+			}
+
+			return null;
+		};
+
 		foreach ($tokens as $key => $token) {
 			if (!is_array($token)) {
 				$token = array(0 => null, 1 => $token, 2 => null);
@@ -137,7 +179,8 @@ class Code extends \lithium\g11n\catalog\Adapter {
 					$data = $this->_merge($data, array(
 						'id' => $ids['singular'],
 						'ids' => $ids,
-						'occurrences' => array($occurrence)
+						'occurrences' => array($occurrence),
+						'context' => $context
 					));
 					extract($defaults, EXTR_OVERWRITE);
 				} elseif ($token[0] === T_CONSTANT_ENCAPSED_STRING) {
@@ -154,6 +197,7 @@ class Code extends \lithium\g11n\catalog\Adapter {
 						continue;
 					}
 					$occurrence['line'] = $token[2];
+					$context = $findOption('context', $key + 2);
 				}
 			}
 		}
@@ -176,7 +220,7 @@ class Code extends \lithium\g11n\catalog\Adapter {
 			}
 			return substr($value, 1, -1);
 		};
-		$fields = array('id', 'ids', 'translated');
+		$fields = array('id', 'ids', 'translated', 'context');
 
 		foreach ($fields as $field) {
 			if (isset($item[$field])) {

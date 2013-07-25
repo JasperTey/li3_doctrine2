@@ -95,6 +95,11 @@ EOD;
 		$data = <<<EOD
 <h2>Flowers</h2>
 <?=\$t('Apples are green.'); ?>
+<?=\$t('This is a ball.', array('context' => 'Spherical object')); ?>
+<?=\$t('This is a ball.', array('context' => 'Social gathering')); ?>
+<?=\$t('This is a ball.', array('foo' => bar(), 'context' => 'Social gathering')); ?>
+<?=\$t('This is a ball.', array('foo' => 123, 'context' => 'Spherical object')); ?>
+<?=\$t('This is a ball.'); ?>
 EOD;
 		file_put_contents($file, $data);
 
@@ -107,7 +112,7 @@ EOD;
 		$expected = 0;
 		$this->assertIdentical($expected, $result);
 
-		$expected = '/.*Yielded 1 item.*/';
+		$expected = '/.*Yielded 4 item.*/';
 		$result = $this->command->response->output;
 		$this->assertPattern($expected, $result);
 
@@ -115,10 +120,27 @@ EOD;
 		$this->assertFileExists($file);
 
 		$result = file_get_contents($file);
-		$expected = '/msgid "Apples are green\."/';
+		$expected = '#/tmp/tests/source(/|\\\\)a.html.php:2';
+		$expected .= "\n";
+		$expected .= 'msgid "Apples are green\."#';
 		$this->assertPattern($expected, $result);
 
-		$expected = '#/tmp/tests/source(/|\\\\)a.html.php:2#';
+		$expected = '#/tmp/tests/source(/|\\\\)a.html.php:3';
+		$expected .= "\n";
+		$expected .= '.*/tmp/tests/source(/|\\\\)a.html.php:6';
+		$expected .= "\n";
+		$expected .= 'msgctxt "Spherical object"';
+		$expected .= "\n";
+		$expected .= 'msgid "This is a ball."#';
+		$this->assertPattern($expected, $result);
+
+		$expected = '#/tmp/tests/source(/|\\\\)a.html.php:4';
+		$expected .= "\n";
+		$expected .= '.*/tmp/tests/source(/|\\\\)a.html.php:5';
+		$expected .= "\n";
+		$expected .= 'msgctxt "Social gathering"';
+		$expected .= "\n";
+		$expected .= 'msgid "This is a ball."#';
 		$this->assertPattern($expected, $result);
 
 		$result = $this->command->response->error;
